@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator')
 const Post = require('../models/post');
+const User = require('../models/user')
 const path = require('path');
 const fs = require('fs');
 const { json } = require('body-parser');
@@ -45,13 +46,22 @@ exports.creatPost = async (req, res, next) => {
             title: title,
             content: content,
             imageUrl: req.file.filename,
-            creator: { name: 'kia' },
+            creator: req.userId,
 
         })
         const postResult = await post.save()
+
+        const user = await User.findById(req.userId);
+
+        user.posts.push(postResult) // why we don't use await?
+
+        const creator = await user.save()
+
+
         res.status(201).json({
-            message: 'creat first post command in restapi',
-            posts: postResult
+            message: 'creat  post',
+            posts: postResult ,
+            creator:creator
         })
     } catch (err) {
         if (!err.statusCode) {
@@ -95,10 +105,10 @@ exports.updatePost = async (req, res, next) => {
         const postId = req.params.postId;
         const content = req.body.content;
         const title = req.body.title;
-        let imageUrl = req.body.image // why req.body ? 
+        let imageUrl = req.body.image 
 
         if (req.file) {
-            imageUrl = req.file.filename // why req.filename ?
+            imageUrl = req.file.filename 
         }
         if (!imageUrl) {
             const error = new Error('Please upload a file first')

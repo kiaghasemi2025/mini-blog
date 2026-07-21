@@ -18,7 +18,8 @@ router.post('/signup', [
         .trim()
         .isLength({ min: 4 })
 
-]
-    , authController.postSignup)
+], authController.postSignup)
 
-module.exports = router ;
+router.post('/login' , authController.postLogin)
+
+module.exports = router;
