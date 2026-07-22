@@ -5,10 +5,11 @@ const path = require('path');
 const fs = require('fs');
 const { json } = require('body-parser');
 const post = require('../models/post');
+const mongoose = require('mongoose')
 
 exports.getPostsList = async (req, res, next) => {
     try {
-        const postsList = await Post.find();
+        const postsList = await Post.find().populate('creator');
         res.status(200).json({ message: 'Post Lists are fetched', posts: postsList })
 
     } catch (error) {
@@ -60,8 +61,8 @@ exports.creatPost = async (req, res, next) => {
 
         res.status(201).json({
             message: 'creat  post',
-            posts: postResult ,
-            creator:creator
+            posts: postResult,
+            creator: creator
         })
     } catch (err) {
         if (!err.statusCode) {
@@ -75,7 +76,7 @@ exports.creatPost = async (req, res, next) => {
 exports.getPost = async (req, res, next) => {
     try {
         const postId = req.params.postId;
-        const post = await Post.findById(postId);
+        const post = await Post.findById(postId).populate('creator');
         if (!post) {
             const error = new Error("Cannot find post!")
             error.statusCode = 404;
@@ -105,10 +106,10 @@ exports.updatePost = async (req, res, next) => {
         const postId = req.params.postId;
         const content = req.body.content;
         const title = req.body.title;
-        let imageUrl = req.body.image 
+        let imageUrl = req.body.image
 
         if (req.file) {
-            imageUrl = req.file.filename 
+            imageUrl = req.file.filename
         }
         if (!imageUrl) {
             const error = new Error('Please upload a file first')
@@ -121,6 +122,12 @@ exports.updatePost = async (req, res, next) => {
         if (!post) {
             const error = new Error('Post not found ')
             error.statusCode = 404
+            throw error
+        }
+
+        if (post.creator.toString() !== req.userId.toString()) {
+            const error = new Error('User is unauthorized')
+            error.statusCode = 403;
             throw error
         }
 
@@ -155,17 +162,26 @@ exports.deletePost = async (req, res, next) => {
 
         if (!post) {
             const error = new Error('Post not finde !')
-            error.statusCode=404
+            error.statusCode = 404
+            throw error
+        }
+        if (post.creator.toString() !== req.userId.toString()) {
+            const error = new Error('User is unauthorized')
+            error.statusCode = 403;
             throw error
         }
 
         clearImage(post.imageUrl)
         await post.deleteOne();
         // const deletePost = await Post.findByIdAndDelete(postId);
-        res.status(200).json({message:'Post deleted successfuly :)'})
+        const user = await User.findById(req.userId)
+        user.posts.pull(postId)
+        await user.save()
+
+        res.status(200).json({ message: 'Post deleted successfuly :)' })
 
     } catch (error) {
-        if(!error.statusCode){
+        if (!error.statusCode) {
             error.statusCode = 500
         }
         next(error)
