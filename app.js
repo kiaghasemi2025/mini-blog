@@ -40,10 +40,7 @@ const upload = multer({
 
 app.use(bodyParser.json())
 app.use("/images", express.static(path.join(__dirname, '/images')))
-
 app.use(upload.single('image'))
-
-
 
 //Setheader middlewear
 app.use((req, res, next) => {
@@ -68,13 +65,14 @@ app.use((error, req, res, next) => {
 
 })
 
-
-
 //Connect mongodb
 mongoose.connect('mongodb://localhost:27017/miniblog').then(Result => {
-    app.listen(8080, () => {
+    const server = app.listen(8080, () => {
         console.log(`Server is listening on port 8080`);
-
+    })
+    const io = require('./socket').init(server);
+    io.on('connection' , () => {
+        console.log('Someone connected');
     })
 }).catch(err => {
     console.log(err);

@@ -6,6 +6,7 @@ const fs = require('fs');
 const { json } = require('body-parser');
 const post = require('../models/post');
 const mongoose = require('mongoose')
+const io = require('../socket')
 
 exports.getPostsList = async (req, res, next) => {
     try {
@@ -57,6 +58,11 @@ exports.creatPost = async (req, res, next) => {
         user.posts.push(postResult) // why we don't use await?
 
         const creator = await user.save()
+
+        io.getIO().emit('post' , {
+            action:'create',
+            post:postResult
+        })
 
 
         res.status(201).json({
