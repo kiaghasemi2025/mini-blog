@@ -10,7 +10,7 @@ const io = require('../socket')
 
 exports.getPostsList = async (req, res, next) => {
     try {
-        const postsList = await Post.find().populate('creator');
+        const postsList = await Post.find().populate('creator').sort({createdAt:-1});
         res.status(200).json({ message: 'Post Lists are fetched', posts: postsList })
 
     } catch (error) {
@@ -61,9 +61,8 @@ exports.creatPost = async (req, res, next) => {
 
         io.getIO().emit('post' , {
             action:'create',
-            post:postResult
+            post:{...post._doc, creator:{_id:req.userId,name:user.name}}
         })
-
 
         res.status(201).json({
             message: 'creat  post',
@@ -123,7 +122,7 @@ exports.updatePost = async (req, res, next) => {
             throw error
         }
 
-        const post = await Post.findById(postId);
+        const post = await Post.findById(postId).populate('creator');
 
         if (!post) {
             const error = new Error('Post not found ')
@@ -131,7 +130,7 @@ exports.updatePost = async (req, res, next) => {
             throw error
         }
 
-        if (post.creator.toString() !== req.userId.toString()) {
+        if (post.creator._id.toString() !== req.userId.toString()) {
             const error = new Error('User is unauthorized')
             error.statusCode = 403;
             throw error
@@ -145,7 +144,12 @@ exports.updatePost = async (req, res, next) => {
         post.content = content;
         post.imageUrl = imageUrl;
 
-        await post.save();
+        const result = await post.save();
+
+        io.getIO().emit('post' , {
+            action:'update',
+            post:result
+        })
 
         res.status(200).json({
             message: 'post updated successfuly',
@@ -183,6 +187,11 @@ exports.deletePost = async (req, res, next) => {
         const user = await User.findById(req.userId)
         user.posts.pull(postId)
         await user.save()
+        
+        io.getIO().emit('post' , {
+            action:'delete',
+            post:post
+        })
 
         res.status(200).json({ message: 'Post deleted successfuly :)' })
 
